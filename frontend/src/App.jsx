@@ -498,7 +498,7 @@ function App() {
             ref={fileInputRef}
             className="hidden-input"
             type="file"
-            accept=".txt,.pdf,text/plain,application/pdf"
+            accept=".txt,.pdf,.docx,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             onChange={handleResumeSelection}
           />
         </header>

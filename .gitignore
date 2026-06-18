@@ -9,4 +9,5 @@ dist/
 coverage/
 mongo_data/
 solr_data/
+postings.csv
 

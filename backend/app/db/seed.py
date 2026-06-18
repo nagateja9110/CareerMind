@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import csv
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -11,44 +13,28 @@ from app.core.config import get_settings
 
 settings = get_settings()
 
-SAMPLE_JOBS: list[dict[str, Any]] = [
-    {
-        "id": "job-001",
-        "title": "Data Engineer",
-        "company": "BridgeStack",
-        "location": "Bangalore",
-        "skills": ["Python", "SQL", "Spark", "Airflow", "AWS"],
-        "description": "Build batch and streaming pipelines for analytics teams.",
-        "seniority": "Mid",
-    },
-    {
-        "id": "job-002",
-        "title": "ML Engineer",
-        "company": "NeuronForge",
-        "location": "Bangalore",
-        "skills": ["Python", "PyTorch", "AWS", "MLOps"],
-        "description": "Productionize model training and inference systems.",
-        "seniority": "Mid",
-    },
-    {
-        "id": "job-003",
-        "title": "Backend Developer",
-        "company": "Railbyte",
-        "location": "Hyderabad",
-        "skills": ["Python", "APIs", "SQL", "Docker"],
-        "description": "Develop internal platform services and APIs.",
-        "seniority": "Mid",
-    },
-    {
-        "id": "job-004",
-        "title": "Analytics Engineer",
-        "company": "MetricLoop",
-        "location": "Bangalore",
-        "skills": ["SQL", "Python", "ETL", "Airflow"],
-        "description": "Model warehouse data and support self-serve analytics.",
-        "seniority": "Mid",
-    },
-]
+JOBS_DATASET_PATH = Path(__file__).resolve().parent.parent / "data" / "jobs_dataset.csv"
+
+
+def _load_jobs_dataset() -> list[dict[str, Any]]:
+    if not JOBS_DATASET_PATH.exists():
+        return []
+
+    jobs: list[dict[str, Any]] = []
+    with JOBS_DATASET_PATH.open(newline="", encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            jobs.append(
+                {
+                    "id": row["id"],
+                    "title": row["title"],
+                    "company": row["company"],
+                    "location": row["location"],
+                    "skills": [skill for skill in row["skills"].split(";") if skill],
+                    "description": row["description"],
+                    "seniority": row["seniority"],
+                }
+            )
+    return jobs
 
 
 async def seed_skills_taxonomy(database: AsyncIOMotorDatabase) -> None:
@@ -82,11 +68,15 @@ async def seed_solr_jobs() -> None:
         if num_docs > 0:
             return
 
+        jobs = _load_jobs_dataset()
+        if not jobs:
+            return
+
         try:
             update_response = await client.post(
                 f"{settings.solr_url}/update",
                 params={"commit": "true"},
-                json=SAMPLE_JOBS,
+                json=jobs,
             )
             update_response.raise_for_status()
         except httpx.HTTPError:

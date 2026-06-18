@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from io import BytesIO
 
+from docx import Document
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pypdf import PdfReader
@@ -17,6 +18,8 @@ from app.models.resume import ResumeResponse
 router = APIRouter(prefix="/resume", tags=["resume"])
 settings = get_settings()
 
+MAX_RESUME_BYTES = 5 * 1024 * 1024
+
 
 def _get_user_id(user: dict) -> str:
     return str(user["_id"])
@@ -30,6 +33,12 @@ async def _extract_resume_text(upload: UploadFile) -> str:
             detail="Uploaded file is empty.",
         )
 
+    if len(content) > MAX_RESUME_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="Resume file exceeds the 5 MB upload limit.",
+        )
+
     content_type = upload.content_type or ""
     filename = (upload.filename or "").lower()
 
@@ -37,8 +46,14 @@ async def _extract_resume_text(upload: UploadFile) -> str:
         return content.decode("utf-8", errors="ignore").strip()
 
     if content_type == "application/pdf" or filename.endswith(".pdf"):
-        reader = PdfReader(BytesIO(content))
-        text = "\n".join((page.extract_text() or "") for page in reader.pages).strip()
+        try:
+            reader = PdfReader(BytesIO(content))
+            text = "\n".join((page.extract_text() or "") for page in reader.pages).strip()
+        except Exception as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Could not parse the PDF. It may be corrupted.",
+            ) from exc
         if text:
             return text
         raise HTTPException(
@@ -46,9 +61,28 @@ async def _extract_resume_text(upload: UploadFile) -> str:
             detail="Could not extract text from the PDF.",
         )
 
+    is_docx = content_type in {
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    } or filename.endswith(".docx")
+    if is_docx:
+        try:
+            document = Document(BytesIO(content))
+            text = "\n".join(paragraph.text for paragraph in document.paragraphs).strip()
+        except Exception as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Could not parse the DOCX file. It may be corrupted.",
+            ) from exc
+        if text:
+            return text
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Could not extract text from the DOCX file.",
+        )
+
     raise HTTPException(
         status_code=status.HTTP_400_BAD_REQUEST,
-        detail="Only PDF and plain text resumes are supported right now.",
+        detail="Only PDF, DOCX, and plain text resumes are supported.",
     )
 
 

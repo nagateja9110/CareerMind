@@ -28,7 +28,7 @@ services:
     container_name: careermind-backend
     restart: unless-stopped
     env_file:
-      - ./backend/.env.example
+      - ./backend/.env
     environment:
       MONGO_URI: mongodb://mongo:27017
       SOLR_URL: http://solr:8983/solr/jobs

@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pymongo.errors import DuplicateKeyError
 
@@ -13,6 +13,7 @@ from app.auth.security import (
     verify_password,
 )
 from app.core.config import get_settings
+from app.core.rate_limit import limiter
 from app.db.mongodb import get_database
 from app.models.auth import AuthResponse, RefreshTokenRequest, UserCreate, UserLogin, UserResponse
 
@@ -63,7 +64,9 @@ async def register(
 
 
 @router.post("/login", response_model=AuthResponse)
+@limiter.limit("5/minute")
 async def login(
+    request: Request,
     payload: UserLogin,
     database: AsyncIOMotorDatabase = Depends(get_database),
 ) -> AuthResponse:

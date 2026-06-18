@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     resumes_collection: str = "resumes"
     skills_taxonomy_collection: str = "skills_taxonomy"
     agent_max_tool_steps: int = 3
+    groq_api_key: str = ""
+    groq_model: str = "llama-3.3-70b-versatile"
+    groq_base_url: str = "https://api.groq.com/openai/v1"
     jwt_secret_key: str = "change-me-in-production"
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60

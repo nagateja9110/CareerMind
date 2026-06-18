@@ -8,11 +8,11 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 DEFAULT_ROLE_SKILLS = {
     "Data Engineer": {
         "required_skills": ["Python", "SQL", "Spark", "Airflow", "AWS", "ETL"],
-        "related_roles": ["Analytics Engineer", "Backend Engineer", "ML Engineer"],
+        "related_roles": ["Analytics Engineer", "Backend Developer", "ML Engineer"],
     },
     "ML Engineer": {
         "required_skills": ["Python", "Machine Learning", "TensorFlow", "PyTorch", "AWS", "MLOps"],
-        "related_roles": ["Data Scientist", "Data Engineer", "Backend Engineer"],
+        "related_roles": ["Data Scientist", "Data Engineer", "Backend Developer"],
     },
     "Backend Developer": {
         "required_skills": ["Python", "Java", "APIs", "SQL", "Docker", "System Design"],
@@ -21,6 +21,74 @@ DEFAULT_ROLE_SKILLS = {
     "Data Analyst": {
         "required_skills": ["SQL", "Excel", "Python", "Statistics", "Tableau", "Communication"],
         "related_roles": ["Business Analyst", "Analytics Engineer", "Data Scientist"],
+    },
+    "Data Scientist": {
+        "required_skills": ["Python", "Machine Learning", "Statistics", "SQL", "Pandas", "Communication"],
+        "related_roles": ["ML Engineer", "Data Analyst", "Analytics Engineer"],
+    },
+    "Frontend Developer": {
+        "required_skills": ["JavaScript", "React", "HTML", "CSS", "TypeScript", "APIs"],
+        "related_roles": ["Full Stack Developer", "UI/UX Designer", "Software Engineer"],
+    },
+    "Full Stack Developer": {
+        "required_skills": ["JavaScript", "React", "Node.js", "SQL", "APIs", "Docker"],
+        "related_roles": ["Frontend Developer", "Backend Developer", "Software Engineer"],
+    },
+    "Software Engineer": {
+        "required_skills": ["Python", "Java", "Git", "System Design", "APIs", "SQL"],
+        "related_roles": ["Backend Developer", "Full Stack Developer", "Platform Engineer"],
+    },
+    "DevOps Engineer": {
+        "required_skills": ["Docker", "Kubernetes", "CI/CD", "AWS", "Terraform", "Linux"],
+        "related_roles": ["Site Reliability Engineer", "Cloud Engineer", "Platform Engineer"],
+    },
+    "Site Reliability Engineer": {
+        "required_skills": ["Kubernetes", "Linux", "Monitoring", "AWS", "CI/CD", "System Design"],
+        "related_roles": ["DevOps Engineer", "Cloud Engineer", "Platform Engineer"],
+    },
+    "Cloud Engineer": {
+        "required_skills": ["AWS", "GCP", "Terraform", "Docker", "Kubernetes", "Networking"],
+        "related_roles": ["DevOps Engineer", "Site Reliability Engineer", "Platform Engineer"],
+    },
+    "Platform Engineer": {
+        "required_skills": ["Kubernetes", "Docker", "CI/CD", "AWS", "System Design", "Python"],
+        "related_roles": ["DevOps Engineer", "Backend Developer", "Cloud Engineer"],
+    },
+    "Security Engineer": {
+        "required_skills": ["Networking", "Linux", "Penetration Testing", "Python", "Cloud Security", "Incident Response"],
+        "related_roles": ["DevOps Engineer", "Cloud Engineer", "Backend Developer"],
+    },
+    "QA Engineer": {
+        "required_skills": ["Selenium", "Test Automation", "Python", "API Testing", "CI/CD", "SQL"],
+        "related_roles": ["Software Engineer", "Backend Developer", "DevOps Engineer"],
+    },
+    "Mobile Developer (Android)": {
+        "required_skills": ["Kotlin", "Android SDK", "Java", "APIs", "Git", "Material Design"],
+        "related_roles": ["Mobile Developer (iOS)", "Frontend Developer", "Software Engineer"],
+    },
+    "Mobile Developer (iOS)": {
+        "required_skills": ["Swift", "iOS SDK", "Xcode", "APIs", "Git", "UIKit"],
+        "related_roles": ["Mobile Developer (Android)", "Frontend Developer", "Software Engineer"],
+    },
+    "Product Manager": {
+        "required_skills": ["Product Strategy", "Roadmapping", "Communication", "SQL", "Agile", "User Research"],
+        "related_roles": ["Business Analyst", "UI/UX Designer", "Data Analyst"],
+    },
+    "Business Analyst": {
+        "required_skills": ["SQL", "Excel", "Communication", "Statistics", "Tableau", "Agile"],
+        "related_roles": ["Data Analyst", "Product Manager", "Analytics Engineer"],
+    },
+    "UI/UX Designer": {
+        "required_skills": ["Figma", "Wireframing", "User Research", "Prototyping", "Communication", "HTML"],
+        "related_roles": ["Product Manager", "Frontend Developer", "Business Analyst"],
+    },
+    "Database Administrator": {
+        "required_skills": ["SQL", "PostgreSQL", "MySQL", "Backup & Recovery", "Linux", "Performance Tuning"],
+        "related_roles": ["Data Engineer", "Backend Developer", "Cloud Engineer"],
+    },
+    "Analytics Engineer": {
+        "required_skills": ["SQL", "Python", "ETL", "dbt", "Airflow", "Data Modeling"],
+        "related_roles": ["Data Engineer", "Data Analyst", "Data Scientist"],
     },
 }
 

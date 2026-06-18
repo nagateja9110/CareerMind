@@ -27,6 +27,10 @@ services:
         value: skills_taxonomy
       - key: AGENT_MAX_TOOL_STEPS
         value: "3"
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        value: llama-3.3-70b-versatile
       - key: JWT_SECRET_KEY
         generateValue: true
       - key: JWT_ALGORITHM

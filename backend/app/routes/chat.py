@@ -3,8 +3,9 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from openai import AsyncOpenAI
 
 from app.agent.orchestrator import AgentContext, CareerAgentOrchestrator
 from app.agent.tools.job_search import JobSearchTool
@@ -12,12 +13,19 @@ from app.agent.tools.resume_parser import ResumeParserTool
 from app.agent.tools.skills_lookup import SkillsLookupTool
 from app.auth.dependencies import get_current_user
 from app.core.config import get_settings
+from app.core.rate_limit import limiter
 from app.db.mongodb import get_database
 from app.models.chat import ChatRequest, ChatResponse, ChatSummary, ChatThread
 
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 settings = get_settings()
+
+_llm_client = (
+    AsyncOpenAI(api_key=settings.groq_api_key, base_url=settings.groq_base_url)
+    if settings.groq_api_key
+    else None
+)
 
 
 def _get_user_id(user: dict) -> str:
@@ -29,11 +37,16 @@ def _build_orchestrator(database: AsyncIOMotorDatabase) -> CareerAgentOrchestrat
         skills_lookup_tool=SkillsLookupTool(database, settings.skills_taxonomy_collection),
         job_search_tool=JobSearchTool(settings.solr_url),
         resume_parser_tool=ResumeParserTool(),
+        llm_client=_llm_client,
+        model=settings.groq_model,
+        max_steps=settings.agent_max_tool_steps,
     )
 
 
 @router.post("", response_model=ChatResponse)
+@limiter.limit("20/minute")
 async def send_message(
+    request: Request,
     payload: ChatRequest,
     current_user: dict = Depends(get_current_user),
     database: AsyncIOMotorDatabase = Depends(get_database),
@@ -57,9 +70,8 @@ async def send_message(
 
     orchestrator = _build_orchestrator(database)
     prior_messages = [
-        message["content"]
+        {"role": message["role"], "content": message["content"]}
         for message in (chat or {}).get("messages", [])
-        if message.get("role") == "user"
     ]
     result = await orchestrator.run(
         AgentContext(
