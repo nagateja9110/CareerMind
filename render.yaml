@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: agentichire-ai-backend-nt
+    name: careermind-api
     runtime: docker
     rootDir: backend
     plan: free
@@ -36,17 +36,17 @@ services:
       - key: REFRESH_TOKEN_EXPIRE_DAYS
         value: "7"
       - key: CORS_ORIGINS
-        value: '["https://agentichire-ai-frontend-nt.onrender.com"]'
+        value: '["https://careermind.onrender.com"]'
 
   - type: web
-    name: agentichire-ai-frontend-nt
+    name: careermind
     runtime: static
     rootDir: frontend
     buildCommand: npm install && npm run build
     staticPublishPath: dist
     envVars:
       - key: VITE_API_BASE_URL
-        value: https://agentichire-ai-backend-nt.onrender.com/api
+        value: https://careermind-api.onrender.com/api
     routes:
       - type: rewrite
         source: /*
