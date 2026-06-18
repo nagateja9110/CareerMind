@@ -31,8 +31,8 @@ const starterPrompts = [
   "How do I move from backend to ML engineering?",
 ];
 
-const TOKEN_STORAGE_KEY = "agentichire_access_token";
-const USER_STORAGE_KEY = "agentichire_user";
+const TOKEN_STORAGE_KEY = "careermind_access_token";
+const USER_STORAGE_KEY = "careermind_user";
 
 function getCachedUser() {
   const cached = localStorage.getItem(USER_STORAGE_KEY);
@@ -312,7 +312,7 @@ function App() {
         <section className="auth-panel">
           <div className="auth-brand">
             <BriefcaseBusiness size={26} aria-hidden="true" />
-            <span>AgenticHire-AI</span>
+            <span>CareerMind</span>
           </div>
           <p className="eyebrow">Career advisor</p>
           <h1>Ground your next move in profile data and live job signals.</h1>
@@ -383,7 +383,7 @@ function App() {
       <aside className="sidebar" aria-label="Conversation history">
         <div className="brand">
           <BriefcaseBusiness size={24} aria-hidden="true" />
-          <span>AgenticHire-AI</span>
+          <span>CareerMind</span>
         </div>
         <button className="new-chat-button" type="button" onClick={handleNewChat}>
           <MessageSquareText size={18} aria-hidden="true" />

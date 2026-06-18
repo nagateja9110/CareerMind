@@ -1,6 +1,6 @@
-# Agentic career 
+# CareerMind
 
-AgenticHire-AI is an agent-driven career advisor that will answer questions using a user's resume, role skill requirements, and real job-market search data.
+CareerMind is an agent-driven career advisor that will answer questions using a user's resume, role skill requirements, and real job-market search data.
 
 ## Phase 1 Foundation
 

@@ -53,4 +53,4 @@ app.include_router(resume_router, prefix=settings.api_prefix)
 
 @app.get("/")
 async def root() -> dict[str, str]:
-    return {"message": "AgenticHire-AI backend is running"}
+    return {"message": "CareerMind backend is running"}

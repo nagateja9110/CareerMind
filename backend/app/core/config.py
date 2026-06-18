@@ -4,11 +4,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    app_name: str = "AgenticHire-AI"
+    app_name: str = "CareerMind"
     environment: str = "development"
     api_prefix: str = "/api"
     mongo_uri: str = "mongodb://mongo:27017"
-    mongo_db: str = "agentichire"
+    mongo_db: str = "CareerMind"
     solr_url: str = "http://solr:8983/solr/jobs"
     users_collection: str = "users"
     chats_collection: str = "chats"

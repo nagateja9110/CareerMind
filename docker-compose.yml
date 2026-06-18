@@ -1,7 +1,7 @@
 services:
   mongo:
     image: mongo:7
-    container_name: agentichire-mongo
+    container_name: careermind-mongo
     restart: unless-stopped
     ports:
       - "27018:27017"
@@ -10,7 +10,7 @@ services:
 
   solr:
     image: solr:9.7
-    container_name: agentichire-solr
+    container_name: careermind-solr
     restart: unless-stopped
     ports:
       - "8983:8983"
@@ -25,7 +25,7 @@ services:
   backend:
     build:
       context: ./backend
-    container_name: agentichire-backend
+    container_name: careermind-backend
     restart: unless-stopped
     env_file:
       - ./backend/.env.example
@@ -44,7 +44,7 @@ services:
   frontend:
     build:
       context: ./frontend
-    container_name: agentichire-frontend
+    container_name: careermind-frontend
     restart: unless-stopped
     environment:
       VITE_API_BASE_URL: http://localhost:8000/api

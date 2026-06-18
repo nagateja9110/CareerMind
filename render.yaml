@@ -6,7 +6,7 @@ services:
     plan: free
     envVars:
       - key: APP_NAME
-        value: AgenticHire-AI
+        value: CareerMind
       - key: ENVIRONMENT
         value: production
       - key: API_PREFIX
