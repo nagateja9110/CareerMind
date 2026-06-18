@@ -1,0 +1,54 @@
+services:
+  - type: web
+    name: agentichire-ai-backend-nt
+    runtime: docker
+    rootDir: backend
+    plan: free
+    envVars:
+      - key: APP_NAME
+        value: AgenticHire-AI
+      - key: ENVIRONMENT
+        value: production
+      - key: API_PREFIX
+        value: /api
+      - key: MONGO_URI
+        sync: false
+      - key: MONGO_DB
+        value: agentichire
+      - key: SOLR_URL
+        value: http://disabled.invalid/solr/jobs
+      - key: USERS_COLLECTION
+        value: users
+      - key: CHATS_COLLECTION
+        value: chats
+      - key: RESUMES_COLLECTION
+        value: resumes
+      - key: SKILLS_TAXONOMY_COLLECTION
+        value: skills_taxonomy
+      - key: AGENT_MAX_TOOL_STEPS
+        value: "3"
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "60"
+      - key: REFRESH_TOKEN_EXPIRE_DAYS
+        value: "7"
+      - key: CORS_ORIGINS
+        value: '["https://agentichire-ai-frontend-nt.onrender.com"]'
+
+  - type: web
+    name: agentichire-ai-frontend-nt
+    runtime: static
+    rootDir: frontend
+    plan: free
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: https://agentichire-ai-backend-nt.onrender.com/api
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

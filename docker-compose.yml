@@ -1,0 +1,61 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: agentichire-mongo
+    restart: unless-stopped
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  solr:
+    image: solr:9.7
+    container_name: agentichire-solr
+    restart: unless-stopped
+    ports:
+      - "8983:8983"
+    volumes:
+      - solr_data:/var/solr
+      - ./solr/server/solr/configsets/jobs:/opt/solr/server/solr/configsets/jobs:ro
+    command:
+      - solr-precreate
+      - jobs
+      - /opt/solr/server/solr/configsets/jobs
+
+  backend:
+    build:
+      context: ./backend
+    container_name: agentichire-backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env.example
+    environment:
+      MONGO_URI: mongodb://mongo:27017
+      SOLR_URL: http://solr:8983/solr/jobs
+      CORS_ORIGINS: '["http://localhost:5173"]'
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/app:/app/app
+    depends_on:
+      - mongo
+      - solr
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: agentichire-frontend
+    restart: unless-stopped
+    environment:
+      VITE_API_BASE_URL: http://localhost:8000/api
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+
+volumes:
+  mongo_data:
+  solr_data:
