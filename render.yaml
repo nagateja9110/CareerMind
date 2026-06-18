@@ -42,7 +42,6 @@ services:
     name: agentichire-ai-frontend-nt
     runtime: static
     rootDir: frontend
-    plan: free
     buildCommand: npm install && npm run build
     staticPublishPath: dist
     envVars:
