@@ -33,6 +33,7 @@ const starterPrompts = [
 
 const TOKEN_STORAGE_KEY = "careermind_access_token";
 const USER_STORAGE_KEY = "careermind_user";
+const ACTIVE_CHAT_STORAGE_KEY = "careermind_active_chat";
 
 function getCachedUser() {
   const cached = localStorage.getItem(USER_STORAGE_KEY);
@@ -46,6 +47,26 @@ function getCachedUser() {
     localStorage.removeItem(USER_STORAGE_KEY);
     return null;
   }
+}
+
+function describeToolCall(toolCall) {
+  const output = toolCall.output ?? {};
+
+  if (toolCall.tool === "skills_taxonomy") {
+    const required = output.required_skills?.join(", ");
+    return required
+      ? `Required skills: ${required}`
+      : "No skill data found for that role.";
+  }
+
+  if (toolCall.tool === "job_search") {
+    const count = output.results_count ?? output.results?.length ?? 0;
+    return count
+      ? `Found ${count} matching job posting${count === 1 ? "" : "s"}.`
+      : "No matching job postings found.";
+  }
+
+  return JSON.stringify(output);
 }
 
 function formatApiError(error, fallback) {
@@ -84,11 +105,23 @@ function App() {
   const [toolCalls, setToolCalls] = useState([]);
   const [loading, setLoading] = useState(false);
   const [bootstrapping, setBootstrapping] = useState(Boolean(token));
+  const [bootstrapError, setBootstrapError] = useState("");
+  const [bootstrapRetryToken, setBootstrapRetryToken] = useState(0);
   const [error, setError] = useState("");
+  const [resumeUploadNotice, setResumeUploadNotice] = useState("");
+  const [hasSearchedJobs, setHasSearchedJobs] = useState(false);
 
   useEffect(() => {
     setAccessToken(token);
   }, [token]);
+
+  useEffect(() => {
+    if (activeChatId) {
+      localStorage.setItem(ACTIVE_CHAT_STORAGE_KEY, activeChatId);
+    } else {
+      localStorage.removeItem(ACTIVE_CHAT_STORAGE_KEY);
+    }
+  }, [activeChatId]);
 
   useEffect(() => {
     if (!token) {
@@ -99,6 +132,7 @@ function App() {
     let cancelled = false;
 
     async function bootstrap() {
+      setBootstrapError("");
       try {
         const [profile, resumeResponse, historyResponse] = await Promise.all([
           fetchProfile(),
@@ -114,8 +148,29 @@ function App() {
         localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(profile));
         setResume(resumeResponse);
         setHistory(historyResponse);
-      } catch {
-        handleLogout();
+
+        const savedChatId = localStorage.getItem(ACTIVE_CHAT_STORAGE_KEY);
+        if (savedChatId && historyResponse.some((chat) => chat.chat_id === savedChatId)) {
+          const thread = await fetchChatThread(savedChatId).catch(() => null);
+          if (thread && !cancelled) {
+            setActiveChatId(thread.chat_id);
+            setMessages(thread.messages);
+          }
+        }
+      } catch (bootstrapError) {
+        if (cancelled) {
+          return;
+        }
+        // An expired/invalid token is the only case that should force a fresh login.
+        // Network hiccups or a slow backend cold start must not wipe the cached
+        // session and resume data, or every reload during a hiccup looks like data loss.
+        if (bootstrapError?.response?.status === 401) {
+          handleLogout();
+          return;
+        }
+        setBootstrapError(
+          "Couldn't reach the server to refresh your data. Showing what's cached locally — retry when you're ready.",
+        );
       } finally {
         if (!cancelled) {
           setBootstrapping(false);
@@ -128,7 +183,7 @@ function App() {
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [token, bootstrapRetryToken]);
 
   function persistSession(authResponse) {
     localStorage.setItem(TOKEN_STORAGE_KEY, authResponse.tokens.access_token);
@@ -140,6 +195,7 @@ function App() {
   function handleLogout() {
     localStorage.removeItem(TOKEN_STORAGE_KEY);
     localStorage.removeItem(USER_STORAGE_KEY);
+    localStorage.removeItem(ACTIVE_CHAT_STORAGE_KEY);
     setAccessToken("");
     setToken("");
     setUser(null);
@@ -192,6 +248,12 @@ function App() {
     try {
       const response = await uploadResume(file);
       setResume(response);
+      const skillCount = response.parsed_skills?.length ?? 0;
+      setResumeUploadNotice(
+        skillCount
+          ? `Resume uploaded — detected ${skillCount} skill${skillCount === 1 ? "" : "s"}.`
+          : "Resume uploaded, but no recognizable skills were detected.",
+      );
     } catch (requestError) {
       setError(
         formatApiError(
@@ -204,6 +266,14 @@ function App() {
       event.target.value = "";
     }
   }
+
+  useEffect(() => {
+    if (!resumeUploadNotice) {
+      return;
+    }
+    const timeout = setTimeout(() => setResumeUploadNotice(""), 5000);
+    return () => clearTimeout(timeout);
+  }, [resumeUploadNotice]);
 
   async function handleSendMessage(messageOverride) {
     const message = (messageOverride ?? chatInput).trim();
@@ -280,6 +350,7 @@ function App() {
           .filter(Boolean),
       });
       setSearchedJobs(jobs);
+      setHasSearchedJobs(true);
     } catch (requestError) {
       setError(formatApiError(requestError, "Job search failed. Please try again."));
     } finally {
@@ -287,11 +358,17 @@ function App() {
     }
   }
 
+  function handleRetryBootstrap() {
+    setBootstrapping(true);
+    setBootstrapRetryToken((current) => current + 1);
+  }
+
   function handleNewChat() {
     setActiveChatId(null);
     setMessages([]);
     setRecommendedJobs([]);
     setSearchedJobs([]);
+    setHasSearchedJobs(false);
     setToolCalls([]);
     setChatInput("");
     setError("");
@@ -405,6 +482,9 @@ function App() {
           </div>
           {resume ? (
             <>
+              <p className="sidebar-meta sidebar-meta-confirm">
+                Uploaded {new Date(resume.uploaded_at).toLocaleDateString()}
+              </p>
               <div className="skill-grid">
                 {resume.parsed_skills.map((skill) => (
                   <span className="skill-chip" key={skill}>
@@ -481,27 +561,42 @@ function App() {
       </aside>
 
       <section className="workspace" aria-label="Career advisor chat">
-        <header className="workspace-header">
-          <div>
-            <p className="eyebrow">Career advisor</p>
-            <h1>Ask grounded questions about your next role.</h1>
-          </div>
-          <button
-            className="upload-button"
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <UploadCloud size={18} aria-hidden="true" />
-            Upload resume
-          </button>
-          <input
-            ref={fileInputRef}
-            className="hidden-input"
-            type="file"
-            accept=".txt,.pdf,.docx,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            onChange={handleResumeSelection}
-          />
-        </header>
+        <div className="workspace-top">
+          <header className="workspace-header">
+            <div>
+              <p className="eyebrow">Career advisor</p>
+              <h1>Ask grounded questions about your next role.</h1>
+            </div>
+            <button
+              className="upload-button"
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <UploadCloud size={18} aria-hidden="true" />
+              Upload resume
+            </button>
+            <input
+              ref={fileInputRef}
+              className="hidden-input"
+              type="file"
+              accept=".txt,.pdf,.docx,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              onChange={handleResumeSelection}
+            />
+          </header>
+
+          {bootstrapError ? (
+            <p className="error-banner banner-inline">
+              {bootstrapError}{" "}
+              <button type="button" className="banner-retry" onClick={handleRetryBootstrap}>
+                Retry
+              </button>
+            </p>
+          ) : null}
+
+          {resumeUploadNotice ? (
+            <p className="success-banner banner-inline">{resumeUploadNotice}</p>
+          ) : null}
+        </div>
 
         <div className="chat-panel">
           {messages.length ? (
@@ -528,34 +623,36 @@ function App() {
             </div>
           )}
 
-          <div className="prompt-row" aria-label="Starter prompts">
-            {starterPrompts.map((prompt) => (
-              <button
-                className="prompt-chip"
-                type="button"
-                key={prompt}
-                onClick={() => handleSendMessage(prompt)}
-              >
-                {prompt}
-              </button>
-            ))}
-          </div>
+          {messages.length === 0 ? (
+            <div className="prompt-row" aria-label="Starter prompts">
+              {starterPrompts.map((prompt) => (
+                <button
+                  className="prompt-chip"
+                  type="button"
+                  key={prompt}
+                  onClick={() => handleSendMessage(prompt)}
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+          ) : null}
 
           {toolCalls.length ? (
-            <div className="tool-panel">
-              <div className="sidebar-label">
+            <details className="tool-panel">
+              <summary className="sidebar-label">
                 <Sparkles size={16} aria-hidden="true" />
-                <span>Agent steps</span>
-              </div>
+                <span>How the agent got this answer</span>
+              </summary>
               <div className="tool-call-list">
                 {toolCalls.map((toolCall, index) => (
                   <div className="tool-call" key={`${toolCall.tool}-${index}`}>
-                    <strong>{toolCall.tool}</strong>
-                    <span>{JSON.stringify(toolCall.output)}</span>
+                    <strong>{toolCall.tool.replace(/_/g, " ")}</strong>
+                    <span>{describeToolCall(toolCall)}</span>
                   </div>
                 ))}
               </div>
-            </div>
+            </details>
           ) : null}
 
           {searchedJobs.length ? (
@@ -575,6 +672,12 @@ function App() {
                 </article>
               ))}
             </section>
+          ) : null}
+
+          {hasSearchedJobs && !searchedJobs.length ? (
+            <p className="sidebar-meta">
+              No job postings matched that search. Try a broader role, location, or skill list.
+            </p>
           ) : null}
 
           {recommendedJobs.length ? (

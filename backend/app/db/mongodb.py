@@ -20,6 +20,10 @@ async def connect_to_mongo() -> AsyncIOMotorDatabase:
     await database[settings.chats_collection].create_index("user_id")
     await database[settings.resumes_collection].create_index("user_id")
     await database[settings.skills_taxonomy_collection].create_index("role", unique=True)
+    await database[settings.jobs_collection].create_index("id", unique=True)
+    await database[settings.jobs_collection].create_index("title")
+    await database[settings.jobs_collection].create_index("location")
+    await database[settings.jobs_collection].create_index("skills")
     return database
 
 

@@ -33,7 +33,7 @@ def _get_user_id(user: dict) -> str:
 def _build_orchestrator(database: AsyncIOMotorDatabase) -> CareerAgentOrchestrator:
     return CareerAgentOrchestrator(
         skills_lookup_tool=SkillsLookupTool(database, settings.skills_taxonomy_collection),
-        job_search_tool=JobSearchTool(settings.solr_url),
+        job_search_tool=JobSearchTool(database, settings.jobs_collection),
         resume_parser_tool=ResumeParserTool(),
         llm_client=_llm_client,
         model=settings.groq_model,

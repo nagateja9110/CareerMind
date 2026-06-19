@@ -9,11 +9,11 @@ class Settings(BaseSettings):
     api_prefix: str = "/api"
     mongo_uri: str = "mongodb://mongo:27017"
     mongo_db: str = "CareerMind"
-    solr_url: str = "http://solr:8983/solr/jobs"
     users_collection: str = "users"
     chats_collection: str = "chats"
     resumes_collection: str = "resumes"
     skills_taxonomy_collection: str = "skills_taxonomy"
+    jobs_collection: str = "jobs"
     agent_max_tool_steps: int = 3
     groq_api_key: str = ""
     groq_model: str = "llama-3.3-70b-versatile"

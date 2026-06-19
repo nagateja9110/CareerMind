@@ -8,7 +8,7 @@ from slowapi.errors import RateLimitExceeded
 from app.core.config import get_settings
 from app.core.rate_limit import limiter
 from app.db.mongodb import close_mongo_client, connect_to_mongo
-from app.db.seed import seed_skills_taxonomy, seed_solr_jobs
+from app.db.seed import seed_jobs, seed_skills_taxonomy
 from app.routes.auth import router as auth_router
 from app.routes.chat import router as chat_router
 from app.routes.health import router as health_router
@@ -24,7 +24,7 @@ settings = get_settings()
 async def lifespan(_: FastAPI):
     database = await connect_to_mongo()
     await seed_skills_taxonomy(database)
-    await seed_solr_jobs()
+    await seed_jobs(database)
     try:
         yield
     finally:

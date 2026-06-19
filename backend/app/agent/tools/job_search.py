@@ -1,15 +1,21 @@
 from __future__ import annotations
 
+import re
 from typing import Any
 
-import httpx
+from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.models.chat import RecommendedJob
 
 
+def _regex_filter(value: str) -> re.Pattern[str]:
+    return re.compile(re.escape(value), re.IGNORECASE)
+
+
 class JobSearchTool:
-    def __init__(self, solr_url: str) -> None:
-        self.solr_url = solr_url.rstrip("/")
+    def __init__(self, database: AsyncIOMotorDatabase, collection_name: str) -> None:
+        self.database = database
+        self.collection_name = collection_name
 
     async def search(
         self,
@@ -19,40 +25,25 @@ class JobSearchTool:
         skills: list[str] | None = None,
         rows: int = 3,
     ) -> list[RecommendedJob]:
-        query_parts: list[str] = []
+        query: dict[str, Any] = {}
         if role:
-            query_parts.append(f'title:"{role}"')
+            query["title"] = _regex_filter(role)
         if location:
-            query_parts.append(f'location:"{location}"')
+            query["location"] = _regex_filter(location)
         if skills:
-            query_parts.extend(f'skills:"{skill}"' for skill in skills if skill)
+            clean_skills = [skill for skill in skills if skill]
+            if clean_skills:
+                query["skills"] = {"$in": [_regex_filter(skill) for skill in clean_skills]}
 
-        query = " OR ".join(query_parts) if query_parts else "*:*"
+        cursor = self.database[self.collection_name].find(query).limit(rows)
+        docs = await cursor.to_list(length=rows)
 
-        try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
-                response = await client.get(
-                    f"{self.solr_url}/select",
-                    params={
-                        "q": query,
-                        "rows": rows,
-                        "wt": "json",
-                    },
-                )
-                response.raise_for_status()
-        except httpx.HTTPError:
-            return []
-
-        payload = response.json()
-        docs: list[dict[str, Any]] = payload.get("response", {}).get("docs", [])
-        jobs: list[RecommendedJob] = []
-        for doc in docs:
-            jobs.append(
-                RecommendedJob(
-                    title=doc.get("title", "Unknown role"),
-                    company=doc.get("company", "Unknown company"),
-                    location=doc.get("location", "Unknown location"),
-                    matched_skills=doc.get("skills", [])[:5],
-                )
+        return [
+            RecommendedJob(
+                title=doc.get("title", "Unknown role"),
+                company=doc.get("company", "Unknown company"),
+                location=doc.get("location", "Unknown location"),
+                matched_skills=doc.get("skills", [])[:5],
             )
-        return jobs
+            for doc in docs
+        ]

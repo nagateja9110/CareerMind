@@ -15,8 +15,6 @@ services:
         sync: false
       - key: MONGO_DB
         value: CareerMind
-      - key: SOLR_URL
-        value: http://disabled.invalid/solr/jobs
       - key: USERS_COLLECTION
         value: users
       - key: CHATS_COLLECTION

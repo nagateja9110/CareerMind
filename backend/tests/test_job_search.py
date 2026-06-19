@@ -1,33 +1,46 @@
-import httpx
-import respx
-
 from app.agent.tools.job_search import JobSearchTool
 
 
-SOLR_URL = "http://solr:8983/solr/jobs"
+class FakeCursor:
+    def __init__(self, docs):
+        self._docs = docs
+
+    def limit(self, _rows):
+        return self
+
+    async def to_list(self, length):
+        return self._docs[:length]
 
 
-@respx.mock
+class FakeCollection:
+    def __init__(self, docs):
+        self.docs = docs
+        self.last_query = None
+
+    def find(self, query):
+        self.last_query = query
+        return FakeCursor(self.docs)
+
+
+class FakeDatabase:
+    def __init__(self, docs):
+        self._collection = FakeCollection(docs)
+
+    def __getitem__(self, _name):
+        return self._collection
+
+
 async def test_search_returns_parsed_jobs():
-    respx.get(f"{SOLR_URL}/select").mock(
-        return_value=httpx.Response(
-            200,
-            json={
-                "response": {
-                    "docs": [
-                        {
-                            "title": "Data Engineer",
-                            "company": "BridgeStack",
-                            "location": "Bangalore",
-                            "skills": ["Python", "SQL", "Spark"],
-                        }
-                    ]
-                }
-            },
-        )
-    )
-
-    tool = JobSearchTool(SOLR_URL)
+    docs = [
+        {
+            "title": "Data Engineer",
+            "company": "BridgeStack",
+            "location": "Bangalore",
+            "skills": ["Python", "SQL", "Spark"],
+        }
+    ]
+    database = FakeDatabase(docs)
+    tool = JobSearchTool(database, "jobs")
     jobs = await tool.search(role="Data Engineer", location="Bangalore", skills=["Python"])
 
     assert len(jobs) == 1
@@ -36,33 +49,28 @@ async def test_search_returns_parsed_jobs():
     assert jobs[0].matched_skills == ["Python", "SQL", "Spark"]
 
 
-@respx.mock
-async def test_search_returns_empty_list_on_http_error():
-    respx.get(f"{SOLR_URL}/select").mock(return_value=httpx.Response(500))
-
-    tool = JobSearchTool(SOLR_URL)
-    jobs = await tool.search(role="Data Engineer")
+async def test_search_returns_empty_list_when_nothing_matches():
+    database = FakeDatabase([])
+    tool = JobSearchTool(database, "jobs")
+    jobs = await tool.search(role="Astronaut")
 
     assert jobs == []
 
 
-@respx.mock
-async def test_search_returns_empty_list_on_connection_error():
-    respx.get(f"{SOLR_URL}/select").mock(side_effect=httpx.ConnectError("refused"))
-
-    tool = JobSearchTool(SOLR_URL)
-    jobs = await tool.search(role="Data Engineer")
-
-    assert jobs == []
-
-
-@respx.mock
-async def test_search_builds_wildcard_query_with_no_filters():
-    route = respx.get(f"{SOLR_URL}/select").mock(
-        return_value=httpx.Response(200, json={"response": {"docs": []}})
-    )
-
-    tool = JobSearchTool(SOLR_URL)
+async def test_search_builds_empty_query_with_no_filters():
+    database = FakeDatabase([])
+    tool = JobSearchTool(database, "jobs")
     await tool.search()
 
-    assert route.calls.last.request.url.params["q"] == "*:*"
+    assert database._collection.last_query == {}
+
+
+async def test_search_filters_on_title_location_and_skills():
+    database = FakeDatabase([])
+    tool = JobSearchTool(database, "jobs")
+    await tool.search(role="Data Engineer", location="Bangalore", skills=["Python", "SQL"])
+
+    query = database._collection.last_query
+    assert set(query.keys()) == {"title", "location", "skills"}
+    assert query["title"].pattern == "Data\\ Engineer"
+    assert query["skills"]["$in"][0].pattern == "Python"

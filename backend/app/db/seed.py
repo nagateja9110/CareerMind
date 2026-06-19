@@ -4,7 +4,6 @@ import csv
 from pathlib import Path
 from typing import Any
 
-import httpx
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.agent.tools.skills_lookup import DEFAULT_ROLE_SKILLS
@@ -53,31 +52,13 @@ async def seed_skills_taxonomy(database: AsyncIOMotorDatabase) -> None:
         )
 
 
-async def seed_solr_jobs() -> None:
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        try:
-            status_response = await client.get(
-                f"{settings.solr_url}/select",
-                params={"q": "*:*", "rows": 0, "wt": "json"},
-            )
-            status_response.raise_for_status()
-        except httpx.HTTPError:
-            return
+async def seed_jobs(database: AsyncIOMotorDatabase) -> None:
+    collection = database[settings.jobs_collection]
+    if await collection.count_documents({}, limit=1):
+        return
 
-        num_docs = status_response.json().get("response", {}).get("numFound", 0)
-        if num_docs > 0:
-            return
+    jobs = _load_jobs_dataset()
+    if not jobs:
+        return
 
-        jobs = _load_jobs_dataset()
-        if not jobs:
-            return
-
-        try:
-            update_response = await client.post(
-                f"{settings.solr_url}/update",
-                params={"commit": "true"},
-                json=jobs,
-            )
-            update_response.raise_for_status()
-        except httpx.HTTPError:
-            return
+    await collection.insert_many(jobs)
