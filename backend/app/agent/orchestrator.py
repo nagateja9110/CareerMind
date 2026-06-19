@@ -18,7 +18,11 @@ SYSTEM_PROMPT = (
     "exact results returned by the tools you call. When listing required, matched, "
     "or missing skills, use ONLY the skill names that appear verbatim in a tool's "
     "output or the resume context — never add a skill that wasn't explicitly "
-    "returned. If a tool returns no data, say so plainly instead of guessing. Call "
+    "returned. Before claiming a search found nothing, check the tool result's "
+    "results_count: if it is greater than zero, you MUST name at least one "
+    "specific company or job title from its results — saying you found no "
+    "openings when results_count is non-zero is a critical error. Only say "
+    "there were no matches when results_count is actually zero. Call "
     "skills_taxonomy when the user asks about a target role's requirements or a "
     "skill gap. Call job_search only when the user asks about openings, hiring, or "
     "companies. Answer directly, without calling a tool, if the conversation "
@@ -27,8 +31,8 @@ SYSTEM_PROMPT = (
     "log: never say things like 'based on the skills_taxonomy output' or 'the "
     "job_search output indicates' or mention tool names at all — just state the "
     "facts naturally (e.g. 'For a Data Engineer role, you're missing Spark, "
-    "Airflow, and AWS.'). If a search came back empty, say so in plain language "
-    "('I couldn't find any open roles matching that right now') instead of "
+    "Airflow, and AWS.' or 'BridgeStack is hiring for that role in Bangalore.'). "
+    "If results_count really is zero, say so in your own plain words instead of "
     "describing the empty result. Keep answers concise — a few sentences, not a report."
 )
 
@@ -89,6 +93,7 @@ class CareerAgentOrchestrator:
         llm_client: AsyncOpenAI | None = None,
         model: str = "",
         max_steps: int = 3,
+        temperature: float = 0.2,
     ) -> None:
         self.skills_lookup_tool = skills_lookup_tool
         self.job_search_tool = job_search_tool
@@ -96,6 +101,10 @@ class CareerAgentOrchestrator:
         self.llm_client = llm_client
         self.model = model
         self.max_steps = max_steps
+        # Low, not zero: keeps the agent's phrasing natural while making it far
+        # less likely to contradict the tool results it was just given (e.g.
+        # claiming "no openings" right after a tool call returned three).
+        self.temperature = temperature
 
     async def run(self, context: AgentContext) -> AgentRunResult:
         parsed_resume = self.resume_parser_tool.parse(context.resume_text or "")
@@ -199,7 +208,7 @@ class CareerAgentOrchestrator:
         for attempt in range(2):
             try:
                 return await self.llm_client.chat.completions.create(
-                    model=self.model, **kwargs
+                    model=self.model, temperature=self.temperature, **kwargs
                 )
             except APIError:
                 if attempt == 1:

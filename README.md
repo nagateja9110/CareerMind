@@ -141,6 +141,25 @@ pip install -r requirements-dev.txt
 pytest
 ```
 
+## Evals
+
+Unit tests cover code paths with scripted/mocked LLM responses; they don't tell you whether the *real* model actually reasons and stays grounded. [backend/evals/](backend/evals) does that: it runs the orchestrator against the real configured LLM, but with frozen tool data (a fixed, in-memory job list and the production skills-taxonomy fallback table — see [evals/fakes.py](backend/evals/fakes.py)) so a failing case always points at the agent's behavior, not a flaky live API or a changed dataset.
+
+Each of the 6 cases in [evals/fixtures.py](backend/evals/fixtures.py) checks two things:
+- **Tool-call correctness** — did the agent call the tool(s) the question actually requires (e.g. `job_search` for a hiring question), and stay quiet when no new lookup was needed?
+- **Groundedness** — does the answer mention only skills/companies the tools actually returned, with explicit "shouldn't invent this" terms per case to catch hallucination?
+
+Run it with:
+
+```bash
+cd backend
+python -m evals.run_evals
+```
+
+This harness already earned its keep once: it caught the agent's final answer contradicting its own tool output (claiming "no openings" right after a tool call returned three), traced to two real bugs — no temperature set on the completion calls, and a literal example phrase in the system prompt that the model was echoing as a canned response regardless of what the tool actually returned. Both are fixed in [orchestrator.py](backend/app/agent/orchestrator.py).
+
+Note: the harness makes real LLM calls per case, so back-to-back runs can trip Groq's free-tier rate or daily-token limit — that shows up as "reasoning step failed after a retry" and is an API quota issue, not a grounding failure.
+
 ## What's not here yet
 
 - The frontend doesn't use Redux yet, even though it's a listed dependency — state is currently plain `useState`. Fine for the current UI size, would matter if it grew.
