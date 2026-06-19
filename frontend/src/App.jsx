@@ -309,6 +309,10 @@ function App() {
       setMessages((current) => [...current, assistantMessage]);
       setActiveChatId(response.chat_id);
       setRecommendedJobs(response.recommended_jobs);
+      // A new chat turn supersedes any earlier direct job search, so its
+      // "no results" message shouldn't keep showing alongside fresh recommendations.
+      setSearchedJobs([]);
+      setHasSearchedJobs(false);
       setToolCalls(response.tool_calls);
       const historyResponse = await fetchChatHistory();
       setHistory(historyResponse);
@@ -353,6 +357,8 @@ function App() {
       });
       setSearchedJobs(jobs);
       setHasSearchedJobs(true);
+      // A direct search supersedes earlier chat-driven recommendations in the same panel.
+      setRecommendedJobs([]);
     } catch (requestError) {
       setError(formatApiError(requestError, "Job search failed. Please try again."));
     } finally {
