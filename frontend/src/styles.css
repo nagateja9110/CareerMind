@@ -612,6 +612,31 @@ h1 {
   margin-top: 10px;
 }
 
+.job-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.job-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  color: var(--forest-strong);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: none;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-strong);
+}
+
+.job-link:hover {
+  background: rgba(42, 107, 90, 0.12);
+}
+
 .skill-chip {
   padding: 6px 10px;
   color: var(--forest-strong);

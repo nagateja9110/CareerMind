@@ -3,6 +3,7 @@ import {
   BadgeCheck,
   BriefcaseBusiness,
   ChevronUp,
+  ExternalLink,
   LoaderCircle,
   LogOut,
   MessageSquareText,
@@ -61,6 +62,34 @@ function formatApiError(error, fallback) {
     return detail.map((item) => item.msg ?? item.type ?? "Invalid input").join(" ");
   }
   return fallback;
+}
+
+function buildJobPlatformLinks(job) {
+  const role = job.title?.trim() ?? "";
+  const location = job.location?.trim() ?? "";
+  const query = encodeURIComponent(role);
+  const place = encodeURIComponent(location);
+
+  return [
+    {
+      name: "LinkedIn",
+      url: `https://www.linkedin.com/jobs/search/?keywords=${query}&location=${place}`,
+    },
+    {
+      name: "Indeed",
+      url: `https://www.indeed.com/jobs?q=${query}&l=${place}`,
+    },
+    {
+      name: "Naukri",
+      url: `https://www.naukri.com/${role.toLowerCase().replace(/\s+/g, "-")}-jobs-in-${location
+        .toLowerCase()
+        .replace(/\s+/g, "-")}`,
+    },
+    {
+      name: "Glassdoor",
+      url: `https://www.glassdoor.com/Job/jobs.htm?sc.keyword=${query}&locT=C&locKeyword=${place}`,
+    },
+  ];
 }
 
 function App() {
@@ -626,6 +655,20 @@ function App() {
                       </span>
                     ))}
                   </div>
+                  <div className="job-links">
+                    {buildJobPlatformLinks(job).map((platform) => (
+                      <a
+                        className="job-link"
+                        href={platform.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        key={`search-${job.title}-${platform.name}`}
+                      >
+                        {platform.name}
+                        <ExternalLink size={12} aria-hidden="true" />
+                      </a>
+                    ))}
+                  </div>
                 </article>
               ))}
             </section>
@@ -649,6 +692,20 @@ function App() {
                       <span className="skill-chip" key={`${job.title}-${skill}`}>
                         {skill}
                       </span>
+                    ))}
+                  </div>
+                  <div className="job-links">
+                    {buildJobPlatformLinks(job).map((platform) => (
+                      <a
+                        className="job-link"
+                        href={platform.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        key={`${job.title}-${platform.name}`}
+                      >
+                        {platform.name}
+                        <ExternalLink size={12} aria-hidden="true" />
+                      </a>
                     ))}
                   </div>
                 </article>
