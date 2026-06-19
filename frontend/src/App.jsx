@@ -3,7 +3,6 @@ import {
   BadgeCheck,
   BriefcaseBusiness,
   ChevronUp,
-  FileText,
   LoaderCircle,
   LogOut,
   MessageSquareText,
@@ -96,7 +95,7 @@ function App() {
   const [hasSearchedJobs, setHasSearchedJobs] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showResumeModal, setShowResumeModal] = useState(false);
-  const [showResumeText, setShowResumeText] = useState(false);
+  const [showJobSearchModal, setShowJobSearchModal] = useState(false);
 
   useEffect(() => {
     if (!showProfileMenu) {
@@ -471,50 +470,6 @@ function App() {
           New chat
         </button>
 
-        <button
-          className="sidebar-resume-trigger"
-          type="button"
-          onClick={() => setShowResumeModal(true)}
-        >
-          <BadgeCheck size={16} aria-hidden="true" />
-          <span>Resume profile</span>
-          {resume ? <span className="resume-dot" aria-hidden="true" /> : null}
-        </button>
-
-        <form className="sidebar-section job-search-form" onSubmit={handleJobSearch}>
-          <div className="sidebar-label">
-            <Search size={16} aria-hidden="true" />
-            <span>Job search</span>
-          </div>
-          <input
-            aria-label="Role"
-            value={jobSearchForm.role}
-            onChange={(event) =>
-              setJobSearchForm((current) => ({ ...current, role: event.target.value }))
-            }
-            placeholder="Role"
-          />
-          <input
-            aria-label="Location"
-            value={jobSearchForm.location}
-            onChange={(event) =>
-              setJobSearchForm((current) => ({ ...current, location: event.target.value }))
-            }
-            placeholder="Location"
-          />
-          <input
-            aria-label="Skills"
-            value={jobSearchForm.skills}
-            onChange={(event) =>
-              setJobSearchForm((current) => ({ ...current, skills: event.target.value }))
-            }
-            placeholder="Skills"
-          />
-          <button type="submit" disabled={loading}>
-            Search jobs
-          </button>
-        </form>
-
         <div className="history-list">
           {history.length ? (
             history.map((chat) => (
@@ -562,14 +517,38 @@ function App() {
               <p className="eyebrow">Career advisor</p>
               <h1>Ask grounded questions about your next role.</h1>
             </div>
-            <button
-              className="upload-button"
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <UploadCloud size={18} aria-hidden="true" />
-              Upload resume
-            </button>
+            <div className="header-actions">
+              <button
+                className="nav-button"
+                type="button"
+                onClick={() => setShowJobSearchModal(true)}
+              >
+                <Search size={18} aria-hidden="true" />
+                Job search
+              </button>
+              <button
+                className="nav-button"
+                type="button"
+                onClick={() => setShowResumeModal(true)}
+              >
+                <BadgeCheck size={18} aria-hidden="true" />
+                Resume profile
+                {resume ? <span className="resume-dot" aria-hidden="true" /> : null}
+              </button>
+              <button
+                className={resume ? "upload-button upload-button-done" : "upload-button"}
+                type="button"
+                title={resume ? "Click to replace your resume" : "Upload your resume"}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {resume ? (
+                  <BadgeCheck size={18} aria-hidden="true" />
+                ) : (
+                  <UploadCloud size={18} aria-hidden="true" />
+                )}
+                {resume ? "Resume uploaded" : "Upload resume"}
+              </button>
+            </div>
             <input
               ref={fileInputRef}
               className="hidden-input"
@@ -700,23 +679,14 @@ function App() {
       </section>
 
       {showResumeModal ? (
-        <div
-          className="modal-overlay"
-          onClick={() => {
-            setShowResumeModal(false);
-            setShowResumeText(false);
-          }}
-        >
-          <div className="modal-panel" onClick={(event) => event.stopPropagation()}>
+        <div className="modal-overlay" onClick={() => setShowResumeModal(false)}>
+          <div className="modal-panel modal-panel-wide" onClick={(event) => event.stopPropagation()}>
             <div className="modal-header">
               <h2>Resume profile</h2>
               <button
                 className="modal-close"
                 type="button"
-                onClick={() => {
-                  setShowResumeModal(false);
-                  setShowResumeText(false);
-                }}
+                onClick={() => setShowResumeModal(false)}
                 aria-label="Close"
               >
                 <X size={18} aria-hidden="true" />
@@ -725,8 +695,9 @@ function App() {
 
             {resume ? (
               <div className="modal-body">
-                <p className="sidebar-meta sidebar-meta-confirm">
-                  Uploaded {new Date(resume.uploaded_at).toLocaleDateString()}
+                <p className="resume-status resume-status-confirmed">
+                  <BadgeCheck size={18} aria-hidden="true" />
+                  Resume uploaded on {new Date(resume.uploaded_at).toLocaleDateString()}
                 </p>
                 <div className="skill-grid">
                   {resume.parsed_skills.map((skill) => (
@@ -740,46 +711,69 @@ function App() {
                     ? `${resume.experience_years} years detected`
                     : "Experience not detected"}
                 </p>
-
-                <button
-                  className="modal-secondary-button"
-                  type="button"
-                  onClick={() => setShowResumeText((current) => !current)}
-                >
-                  <FileText size={16} aria-hidden="true" />
-                  {showResumeText ? "Hide uploaded resume" : "View uploaded resume"}
-                </button>
-                {showResumeText ? <pre className="resume-text">{resume.raw_text}</pre> : null}
-
-                <button
-                  className="modal-secondary-button"
-                  type="button"
-                  onClick={() => {
-                    setShowResumeModal(false);
-                    setShowResumeText(false);
-                    fileInputRef.current?.click();
-                  }}
-                >
-                  <UploadCloud size={16} aria-hidden="true" />
-                  Upload a new resume
-                </button>
               </div>
             ) : (
               <div className="modal-body">
-                <p className="sidebar-meta">Upload a resume to personalize the agent.</p>
-                <button
-                  className="modal-secondary-button"
-                  type="button"
-                  onClick={() => {
-                    setShowResumeModal(false);
-                    fileInputRef.current?.click();
-                  }}
-                >
-                  <UploadCloud size={16} aria-hidden="true" />
-                  Upload resume
-                </button>
+                <p className="resume-status resume-status-missing">No resume uploaded yet.</p>
+                <p className="sidebar-meta">
+                  Use the "Upload resume" button in the top bar to personalize the agent.
+                </p>
               </div>
             )}
+          </div>
+        </div>
+      ) : null}
+
+      {showJobSearchModal ? (
+        <div className="modal-overlay" onClick={() => setShowJobSearchModal(false)}>
+          <div className="modal-panel" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Job search</h2>
+              <button
+                className="modal-close"
+                type="button"
+                onClick={() => setShowJobSearchModal(false)}
+                aria-label="Close"
+              >
+                <X size={18} aria-hidden="true" />
+              </button>
+            </div>
+
+            <form
+              className="modal-body job-search-form"
+              onSubmit={(event) => {
+                handleJobSearch(event);
+                setShowJobSearchModal(false);
+              }}
+            >
+              <input
+                aria-label="Role"
+                value={jobSearchForm.role}
+                onChange={(event) =>
+                  setJobSearchForm((current) => ({ ...current, role: event.target.value }))
+                }
+                placeholder="Role"
+              />
+              <input
+                aria-label="Location"
+                value={jobSearchForm.location}
+                onChange={(event) =>
+                  setJobSearchForm((current) => ({ ...current, location: event.target.value }))
+                }
+                placeholder="Location"
+              />
+              <input
+                aria-label="Skills"
+                value={jobSearchForm.skills}
+                onChange={(event) =>
+                  setJobSearchForm((current) => ({ ...current, skills: event.target.value }))
+                }
+                placeholder="Skills"
+              />
+              <button type="submit" disabled={loading}>
+                Search jobs
+              </button>
+            </form>
           </div>
         </div>
       ) : null}
