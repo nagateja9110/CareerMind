@@ -125,6 +125,7 @@ function App() {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showResumeModal, setShowResumeModal] = useState(false);
   const [showJobSearchModal, setShowJobSearchModal] = useState(false);
+  const [showJobResultsModal, setShowJobResultsModal] = useState(false);
 
   useEffect(() => {
     if (!showProfileMenu) {
@@ -340,6 +341,9 @@ function App() {
       // "no results" message shouldn't keep showing alongside fresh recommendations.
       setSearchedJobs([]);
       setHasSearchedJobs(false);
+      if (response.recommended_jobs.length) {
+        setShowJobResultsModal(true);
+      }
       const historyResponse = await fetchChatHistory();
       setHistory(historyResponse);
     } catch (requestError) {
@@ -382,6 +386,7 @@ function App() {
       });
       setSearchedJobs(jobs);
       setHasSearchedJobs(true);
+      setShowJobResultsModal(true);
       // A direct search supersedes earlier chat-driven recommendations in the same panel.
       setRecommendedJobs([]);
     } catch (requestError) {
@@ -402,6 +407,7 @@ function App() {
     setRecommendedJobs([]);
     setSearchedJobs([]);
     setHasSearchedJobs(false);
+    setShowJobResultsModal(false);
     setChatInput("");
     setError("");
   }
@@ -641,78 +647,6 @@ function App() {
             </div>
           ) : null}
 
-          {searchedJobs.length ? (
-            <section className="jobs-band" aria-label="Direct job search results">
-              {searchedJobs.map((job) => (
-                <article className="job-card" key={`search-${job.company}-${job.title}`}>
-                  <p className="job-meta">{job.location}</p>
-                  <h2>{job.title}</h2>
-                  <p className="job-company">{job.company}</p>
-                  <div className="skill-grid">
-                    {job.matched_skills.map((skill) => (
-                      <span className="skill-chip" key={`search-${job.title}-${skill}`}>
-                        {skill}
-                      </span>
-                    ))}
-                  </div>
-                  <div className="job-links">
-                    {buildJobPlatformLinks(job).map((platform) => (
-                      <a
-                        className="job-link"
-                        href={platform.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        key={`search-${job.title}-${platform.name}`}
-                      >
-                        {platform.name}
-                        <ExternalLink size={12} aria-hidden="true" />
-                      </a>
-                    ))}
-                  </div>
-                </article>
-              ))}
-            </section>
-          ) : null}
-
-          {hasSearchedJobs && !searchedJobs.length ? (
-            <p className="sidebar-meta">
-              No job postings matched that search. Try a broader role, location, or skill list.
-            </p>
-          ) : null}
-
-          {recommendedJobs.length ? (
-            <section className="jobs-band" aria-label="Recommended jobs">
-              {recommendedJobs.map((job) => (
-                <article className="job-card" key={`${job.company}-${job.title}`}>
-                  <p className="job-meta">{job.location}</p>
-                  <h2>{job.title}</h2>
-                  <p className="job-company">{job.company}</p>
-                  <div className="skill-grid">
-                    {job.matched_skills.map((skill) => (
-                      <span className="skill-chip" key={`${job.title}-${skill}`}>
-                        {skill}
-                      </span>
-                    ))}
-                  </div>
-                  <div className="job-links">
-                    {buildJobPlatformLinks(job).map((platform) => (
-                      <a
-                        className="job-link"
-                        href={platform.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        key={`${job.title}-${platform.name}`}
-                      >
-                        {platform.name}
-                        <ExternalLink size={12} aria-hidden="true" />
-                      </a>
-                    ))}
-                  </div>
-                </article>
-              ))}
-            </section>
-          ) : null}
-
           {error ? <p className="error-banner">{error}</p> : null}
         </div>
 
@@ -831,6 +765,65 @@ function App() {
                 Search jobs
               </button>
             </form>
+          </div>
+        </div>
+      ) : null}
+
+      {showJobResultsModal ? (
+        <div className="modal-overlay" onClick={() => setShowJobResultsModal(false)}>
+          <div className="modal-panel modal-panel-wide" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Job results</h2>
+              <button
+                className="modal-close"
+                type="button"
+                onClick={() => setShowJobResultsModal(false)}
+                aria-label="Close"
+              >
+                <X size={18} aria-hidden="true" />
+              </button>
+            </div>
+
+            <div className="modal-body">
+              {hasSearchedJobs && !searchedJobs.length && !recommendedJobs.length ? (
+                <p className="sidebar-meta">
+                  No job postings matched that search. Try a broader role, location, or skill list.
+                </p>
+              ) : null}
+
+              {searchedJobs.length || recommendedJobs.length ? (
+                <section className="jobs-band" aria-label="Job results">
+                  {[...searchedJobs, ...recommendedJobs].map((job, index) => (
+                    <article className="job-card" key={`${job.company}-${job.title}-${index}`}>
+                      <p className="job-meta">{job.location}</p>
+                      <h2>{job.title}</h2>
+                      <p className="job-company">{job.company}</p>
+                      <div className="skill-grid">
+                        {job.matched_skills.map((skill) => (
+                          <span className="skill-chip" key={`${job.title}-${skill}`}>
+                            {skill}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="job-links">
+                        {buildJobPlatformLinks(job).map((platform) => (
+                          <a
+                            className="job-link"
+                            href={platform.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            key={`${job.title}-${platform.name}`}
+                          >
+                            {platform.name}
+                            <ExternalLink size={12} aria-hidden="true" />
+                          </a>
+                        ))}
+                      </div>
+                    </article>
+                  ))}
+                </section>
+              ) : null}
+            </div>
           </div>
         </div>
       ) : null}
