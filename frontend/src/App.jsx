@@ -8,7 +8,6 @@ import {
   LogOut,
   MessageSquareText,
   Search,
-  Sparkles,
   UploadCloud,
   UserRound,
   X,
@@ -54,26 +53,6 @@ function getCachedUser() {
   }
 }
 
-function describeToolCall(toolCall) {
-  const output = toolCall.output ?? {};
-
-  if (toolCall.tool === "skills_taxonomy") {
-    const required = output.required_skills?.join(", ");
-    return required
-      ? `Required skills: ${required}`
-      : "No skill data found for that role.";
-  }
-
-  if (toolCall.tool === "job_search") {
-    const count = output.results_count ?? output.results?.length ?? 0;
-    return count
-      ? `Found ${count} matching job posting${count === 1 ? "" : "s"}.`
-      : "No matching job postings found.";
-  }
-
-  return JSON.stringify(output);
-}
-
 function formatApiError(error, fallback) {
   const detail = error?.response?.data?.detail;
   if (typeof detail === "string") {
@@ -108,7 +87,6 @@ function App() {
   const [resume, setResume] = useState(null);
   const [recommendedJobs, setRecommendedJobs] = useState([]);
   const [searchedJobs, setSearchedJobs] = useState([]);
-  const [toolCalls, setToolCalls] = useState([]);
   const [loading, setLoading] = useState(false);
   const [bootstrapping, setBootstrapping] = useState(Boolean(token));
   const [bootstrapError, setBootstrapError] = useState("");
@@ -226,7 +204,6 @@ function App() {
     setResume(null);
     setHistory([]);
     setMessages([]);
-    setToolCalls([]);
     setRecommendedJobs([]);
     setActiveChatId(null);
     setError("");
@@ -335,7 +312,6 @@ function App() {
       // "no results" message shouldn't keep showing alongside fresh recommendations.
       setSearchedJobs([]);
       setHasSearchedJobs(false);
-      setToolCalls(response.tool_calls);
       const historyResponse = await fetchChatHistory();
       setHistory(historyResponse);
     } catch (requestError) {
@@ -355,7 +331,6 @@ function App() {
       setActiveChatId(thread.chat_id);
       setMessages(thread.messages);
       setRecommendedJobs([]);
-      setToolCalls([]);
     } catch {
       setError("Could not load that chat thread.");
     } finally {
@@ -399,7 +374,6 @@ function App() {
     setRecommendedJobs([]);
     setSearchedJobs([]);
     setHasSearchedJobs(false);
-    setToolCalls([]);
     setChatInput("");
     setError("");
   }
@@ -657,23 +631,6 @@ function App() {
                 </button>
               ))}
             </div>
-          ) : null}
-
-          {toolCalls.length ? (
-            <details className="tool-panel">
-              <summary className="sidebar-label">
-                <Sparkles size={16} aria-hidden="true" />
-                <span>How the agent got this answer</span>
-              </summary>
-              <div className="tool-call-list">
-                {toolCalls.map((toolCall, index) => (
-                  <div className="tool-call" key={`${toolCall.tool}-${index}`}>
-                    <strong>{toolCall.tool.replace(/_/g, " ")}</strong>
-                    <span>{describeToolCall(toolCall)}</span>
-                  </div>
-                ))}
-              </div>
-            </details>
           ) : null}
 
           {searchedJobs.length ? (

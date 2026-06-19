@@ -553,44 +553,6 @@ h1 {
   background: #fffaf0;
 }
 
-.tool-panel {
-  padding: 18px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: rgba(255, 251, 243, 0.76);
-}
-
-.tool-panel summary {
-  cursor: pointer;
-  list-style: none;
-}
-
-.tool-panel summary::-webkit-details-marker {
-  display: none;
-}
-
-.tool-call-list {
-  display: grid;
-  gap: 10px;
-  margin-top: 12px;
-}
-
-.tool-call {
-  display: grid;
-  gap: 4px;
-  padding: 12px;
-  border: 1px solid rgba(22, 54, 47, 0.08);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.7);
-}
-
-.tool-call span {
-  color: var(--ink-soft);
-  font-size: 0.9rem;
-  line-height: 1.45;
-  word-break: break-word;
-}
-
 .jobs-band {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
