@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from "react";
 import {
   BadgeCheck,
   BriefcaseBusiness,
+  ChevronUp,
+  FileText,
   LoaderCircle,
   LogOut,
   MessageSquareText,
@@ -9,6 +11,7 @@ import {
   Sparkles,
   UploadCloud,
   UserRound,
+  X,
 } from "lucide-react";
 
 import {
@@ -84,6 +87,7 @@ function formatApiError(error, fallback) {
 
 function App() {
   const fileInputRef = useRef(null);
+  const profileMenuRef = useRef(null);
   const [authMode, setAuthMode] = useState("login");
   const [authForm, setAuthForm] = useState({
     name: "",
@@ -112,6 +116,24 @@ function App() {
   const [error, setError] = useState("");
   const [resumeUploadNotice, setResumeUploadNotice] = useState("");
   const [hasSearchedJobs, setHasSearchedJobs] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showResumeModal, setShowResumeModal] = useState(false);
+  const [showResumeText, setShowResumeText] = useState(false);
+
+  useEffect(() => {
+    if (!showProfileMenu) {
+      return;
+    }
+
+    function handleOutsideClick(event) {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) {
+        setShowProfileMenu(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, [showProfileMenu]);
 
   useEffect(() => {
     // Lets the axios interceptor force a logout when a 401 survives a refresh attempt.
@@ -475,41 +497,15 @@ function App() {
           New chat
         </button>
 
-        <div className="sidebar-section">
-          <div className="sidebar-label">
-            <UserRound size={16} aria-hidden="true" />
-            <span>{user.name}</span>
-          </div>
-          <p className="sidebar-meta">{user.email}</p>
-        </div>
-
-        <div className="sidebar-section">
-          <div className="sidebar-label">
-            <BadgeCheck size={16} aria-hidden="true" />
-            <span>Resume profile</span>
-          </div>
-          {resume ? (
-            <>
-              <p className="sidebar-meta sidebar-meta-confirm">
-                Uploaded {new Date(resume.uploaded_at).toLocaleDateString()}
-              </p>
-              <div className="skill-grid">
-                {resume.parsed_skills.map((skill) => (
-                  <span className="skill-chip" key={skill}>
-                    {skill}
-                  </span>
-                ))}
-              </div>
-              <p className="sidebar-meta">
-                {resume.experience_years
-                  ? `${resume.experience_years} years detected`
-                  : "Experience not detected"}
-              </p>
-            </>
-          ) : (
-            <p className="sidebar-meta">Upload a resume to personalize the agent.</p>
-          )}
-        </div>
+        <button
+          className="sidebar-resume-trigger"
+          type="button"
+          onClick={() => setShowResumeModal(true)}
+        >
+          <BadgeCheck size={16} aria-hidden="true" />
+          <span>Resume profile</span>
+          {resume ? <span className="resume-dot" aria-hidden="true" /> : null}
+        </button>
 
         <form className="sidebar-section job-search-form" onSubmit={handleJobSearch}>
           <div className="sidebar-label">
@@ -562,10 +558,27 @@ function App() {
           )}
         </div>
 
-        <button className="logout-button" type="button" onClick={handleLogout}>
-          <LogOut size={16} aria-hidden="true" />
-          Log out
-        </button>
+        <div className="sidebar-profile" ref={profileMenuRef}>
+          {showProfileMenu ? (
+            <div className="sidebar-profile-menu">
+              <p className="sidebar-meta">{user.email}</p>
+              <button className="logout-button" type="button" onClick={handleLogout}>
+                <LogOut size={16} aria-hidden="true" />
+                Log out
+              </button>
+            </div>
+          ) : null}
+          <button
+            className="sidebar-profile-trigger"
+            type="button"
+            onClick={() => setShowProfileMenu((current) => !current)}
+            aria-expanded={showProfileMenu}
+          >
+            <UserRound size={18} aria-hidden="true" />
+            <span>{user.name}</span>
+            <ChevronUp size={16} aria-hidden="true" className={showProfileMenu ? "" : "chevron-flipped"} />
+          </button>
+        </div>
       </aside>
 
       <section className="workspace" aria-label="Career advisor chat">
@@ -728,6 +741,91 @@ function App() {
           </button>
         </form>
       </section>
+
+      {showResumeModal ? (
+        <div
+          className="modal-overlay"
+          onClick={() => {
+            setShowResumeModal(false);
+            setShowResumeText(false);
+          }}
+        >
+          <div className="modal-panel" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Resume profile</h2>
+              <button
+                className="modal-close"
+                type="button"
+                onClick={() => {
+                  setShowResumeModal(false);
+                  setShowResumeText(false);
+                }}
+                aria-label="Close"
+              >
+                <X size={18} aria-hidden="true" />
+              </button>
+            </div>
+
+            {resume ? (
+              <div className="modal-body">
+                <p className="sidebar-meta sidebar-meta-confirm">
+                  Uploaded {new Date(resume.uploaded_at).toLocaleDateString()}
+                </p>
+                <div className="skill-grid">
+                  {resume.parsed_skills.map((skill) => (
+                    <span className="skill-chip" key={skill}>
+                      {skill}
+                    </span>
+                  ))}
+                </div>
+                <p className="sidebar-meta">
+                  {resume.experience_years
+                    ? `${resume.experience_years} years detected`
+                    : "Experience not detected"}
+                </p>
+
+                <button
+                  className="modal-secondary-button"
+                  type="button"
+                  onClick={() => setShowResumeText((current) => !current)}
+                >
+                  <FileText size={16} aria-hidden="true" />
+                  {showResumeText ? "Hide uploaded resume" : "View uploaded resume"}
+                </button>
+                {showResumeText ? <pre className="resume-text">{resume.raw_text}</pre> : null}
+
+                <button
+                  className="modal-secondary-button"
+                  type="button"
+                  onClick={() => {
+                    setShowResumeModal(false);
+                    setShowResumeText(false);
+                    fileInputRef.current?.click();
+                  }}
+                >
+                  <UploadCloud size={16} aria-hidden="true" />
+                  Upload a new resume
+                </button>
+              </div>
+            ) : (
+              <div className="modal-body">
+                <p className="sidebar-meta">Upload a resume to personalize the agent.</p>
+                <button
+                  className="modal-secondary-button"
+                  type="button"
+                  onClick={() => {
+                    setShowResumeModal(false);
+                    fileInputRef.current?.click();
+                  }}
+                >
+                  <UploadCloud size={16} aria-hidden="true" />
+                  Upload resume
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }
