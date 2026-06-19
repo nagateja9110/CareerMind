@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -93,6 +94,35 @@ DEFAULT_ROLE_SKILLS = {
 }
 
 
+def _words(text: str) -> set[str]:
+    return set(re.findall(r"[a-z]+", text.lower()))
+
+
+def _closest_known_role(role: str, known_roles: list[str]) -> str | None:
+    """Map free-text role phrasing (e.g. 'Software Development Engineer') to the
+    closest entry in the fixed taxonomy (e.g. 'Software Engineer') so minor wording
+    differences from the LLM's tool call don't return an empty result."""
+    role_words = _words(role)
+    if not role_words:
+        return None
+
+    best_role: str | None = None
+    best_score = 0.0
+    for known in known_roles:
+        if known.lower() == role.strip().lower():
+            return known
+        known_words = _words(known)
+        union = role_words | known_words
+        if not union:
+            continue
+        score = len(role_words & known_words) / len(union)
+        if score > best_score:
+            best_score = score
+            best_role = known
+
+    return best_role if best_score >= 0.4 else None
+
+
 @dataclass
 class SkillsLookupResult:
     role: str
@@ -107,7 +137,11 @@ class SkillsLookupTool:
         self.collection_name = collection_name
 
     async def lookup(self, role: str) -> SkillsLookupResult:
-        record = await self.database[self.collection_name].find_one({"role": role})
+        canonical_role = _closest_known_role(role, list(DEFAULT_ROLE_SKILLS)) or role
+
+        record = await self.database[self.collection_name].find_one(
+            {"role": re.compile(f"^{re.escape(canonical_role)}$", re.IGNORECASE)}
+        )
         if record:
             return SkillsLookupResult(
                 role=record["role"],
@@ -116,10 +150,10 @@ class SkillsLookupTool:
                 source="mongodb",
             )
 
-        fallback = DEFAULT_ROLE_SKILLS.get(role)
+        fallback = DEFAULT_ROLE_SKILLS.get(canonical_role)
         if fallback:
             return SkillsLookupResult(
-                role=role,
+                role=canonical_role,
                 required_skills=fallback["required_skills"],
                 related_roles=fallback["related_roles"],
                 source="fallback",

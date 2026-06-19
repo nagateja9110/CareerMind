@@ -71,6 +71,33 @@ async def test_search_filters_on_title_location_and_skills():
     await tool.search(role="Data Engineer", location="Bangalore", skills=["Python", "SQL"])
 
     query = database._collection.last_query
-    assert set(query.keys()) == {"title", "location", "skills"}
-    assert query["title"].pattern == "Data\\ Engineer"
-    assert query["skills"]["$in"][0].pattern == "Python"
+    conditions = query["$or"]
+    assert {"title", "location", "skills"} == {
+        key for condition in conditions for key in condition
+    }
+    title_condition = next(c for c in conditions if "title" in c)
+    skills_condition = next(c for c in conditions if "skills" in c)
+    assert title_condition["title"].pattern == "Data\\ Engineer"
+    assert skills_condition["skills"]["$in"][0].pattern == "Python"
+
+
+async def test_search_ranks_partial_matches_above_non_matches():
+    docs = [
+        {
+            "title": "Backend Developer",
+            "company": "NoMatchCo",
+            "location": "Remote",
+            "skills": ["Java"],
+        },
+        {
+            "title": "Data Engineer",
+            "company": "PartialMatchCo",
+            "location": "Austin, TX",
+            "skills": ["Python", "SQL"],
+        },
+    ]
+    database = FakeDatabase(docs)
+    tool = JobSearchTool(database, "jobs")
+    jobs = await tool.search(role="Data Engineer", location="Bangalore", skills=["Python"], rows=2)
+
+    assert jobs[0].company == "PartialMatchCo"
