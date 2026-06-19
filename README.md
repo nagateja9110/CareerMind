@@ -48,21 +48,25 @@ You: "What am I missing for a Data Engineer role, and who's hiring?"
 ┌─────────────┐        ┌──────────────────────────────────────────────┐
 │   React UI   │  HTTP  │                  FastAPI Backend                │
 │ (chat, login,│ ─────► │                                                  │
-│  resume      │  JWT   │   Auth (JWT + bcrypt)                           │
-│  upload)     │ ◄───── │        │                                        │
-└─────────────┘        │        ▼                                        │
-                        │   Chat Route ──► Agent Orchestrator (ReAct loop)│
+│  resume      │ JWT +  │   Auth (JWT access + refresh, bcrypt)           │
+│  upload, job │ refresh│        │                                        │
+│  results)    │ ◄───── │        ▼                                        │
+└─────────────┘        │   Chat Route ──► Agent Orchestrator (ReAct loop)│
                         │                        │                       │
                         │         ┌──────────────┼──────────────┐        │
                         │         ▼              ▼              ▼        │
                         │   Resume Parser   Skills Lookup   Job Search    │
-                        │   (PDF/DOCX/TXT)  (MongoDB)        (Solr)       │
+                        │   (PDF/DOCX/TXT)  (MongoDB)     (Adzuna live API,│
+                        │                                  Mongo fallback)│
                         └────┬───────────────────┬──────────────┬────────┘
                              │                    │              │
                              ▼                    ▼              ▼
-                        MongoDB             MongoDB         Apache Solr
-                    (users, chats,       (skills taxonomy,  (job postings
-                     resumes)             21 roles)          search index)
+                        MongoDB             MongoDB          Adzuna API
+                    (users, chats,       (skills taxonomy,   (real-time job
+                     resumes)             21 roles)           postings) ──►
+                                                                falls back to
+                                                                MongoDB (791
+                                                                seeded postings)
                              │
                              ▼
                     Groq API (Llama 3.3 70B)
@@ -72,7 +76,7 @@ You: "What am I missing for a Data Engineer role, and who's hiring?"
 **Why these pieces:**
 - **FastAPI** — async, typed, fast to iterate on.
 - **MongoDB** — chats and resumes are naturally document-shaped (variable structure, nested tool-call traces); no benefit from a rigid schema here.
-- **Apache Solr** — job search needs fast faceted/keyword search over postings; that's what Solr is for.
+- **Adzuna API, with MongoDB fallback** — `job_search` calls Adzuna first for real, current postings; if Adzuna isn't configured or returns nothing for that query, it falls back to a regex-ranked search over a seeded MongoDB dataset, so the tool never just returns empty because one upstream API hiccuped.
 - **Groq (Llama 3.3 70B)** — an OpenAI-compatible, fast, inexpensive way to give the agent real reasoning and tool-calling ability, instead of hand-written keyword matching.
 - **React + Vite** — a small, fast frontend; no heavier framework needed for a single chat-first UI.
 
@@ -87,12 +91,14 @@ The model decides whether it needs either tool, calls it, reads the result, and 
 
 **Grounding data:**
 - The skills taxonomy covers 21 roles (Data Engineer, ML Engineer, DevOps Engineer, Product Manager, UI/UX Designer, and others), each with required skills and related roles, seeded into MongoDB on startup.
-- The job index is built from 791 real job postings sourced from a public [LinkedIn job postings dataset](https://www.kaggle.com/datasets/arshkon/linkedin-job-postings) on Kaggle, classified into those 21 roles and skill-tagged using the same parser that reads resumes — so a skill detected in a resume and a skill required by a job posting are always named consistently.
+- `job_search` prefers live Adzuna results so postings and companies are real and current; the fallback dataset is 791 job postings sourced from a public [LinkedIn job postings dataset](https://www.kaggle.com/datasets/arshkon/linkedin-job-postings) on Kaggle, classified into those 21 roles and skill-tagged using the same parser that reads resumes — so a skill detected in a resume and a skill required by a job posting are always named consistently, regardless of which source answered.
+- Every job result also links out to a live, real-time search on LinkedIn, Indeed, Naukri, and Glassdoor for that exact role/location — generated client-side from the result, not scraped, so it's never stale and needs no extra API keys.
 
 **Other things worth knowing:**
 - Resume uploads accept PDF, DOCX, and plain text, capped at 5 MB.
+- Auth uses short-lived JWT access tokens with a longer-lived refresh token; the frontend silently refreshes on a 401 instead of forcing a re-login.
 - `/api/auth/login` and `/api/chat` are rate-limited per IP to curb abuse.
-- 27 backend tests cover auth, resume parsing, the skills/job-search tools (with mocked HTTP calls), and the agent loop itself (including its retry/fallback behavior when the LLM returns a malformed tool call).
+- 31 backend tests cover auth, resume parsing, the skills/job-search tools (with mocked HTTP calls), and the agent loop itself (including its retry/fallback behavior when the LLM returns a malformed tool call).
 
 ## API
 
@@ -124,7 +130,8 @@ docker compose up --build
 - Frontend: http://localhost:5173
 - Backend: http://localhost:8000
 - API docs: http://localhost:8000/docs
-- Solr admin: http://localhost:8983
+
+Set `ADZUNA_APP_ID`/`ADZUNA_APP_KEY` (free at [developer.adzuna.com](https://developer.adzuna.com)) in `backend/.env` for live job search; without them, `job_search` falls back to the seeded MongoDB dataset automatically.
 
 Running tests:
 
