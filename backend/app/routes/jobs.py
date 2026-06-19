@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Query
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
+from app.agent.tools.adzuna_client import AdzunaClient
 from app.agent.tools.job_search import JobSearchTool
 from app.auth.dependencies import get_current_user
 from app.core.config import get_settings
@@ -20,7 +21,8 @@ async def search_jobs(
     _: dict = Depends(get_current_user),
     database: AsyncIOMotorDatabase = Depends(get_database),
 ) -> list[RecommendedJob]:
-    tool = JobSearchTool(database, settings.jobs_collection)
+    adzuna_client = AdzunaClient(settings.adzuna_app_id, settings.adzuna_app_key)
+    tool = JobSearchTool(database, settings.jobs_collection, adzuna_client)
     return await tool.search(
         role=role,
         location=location,

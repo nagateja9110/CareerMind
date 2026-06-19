@@ -12,15 +12,18 @@ import {
 } from "lucide-react";
 
 import {
+  clearSession,
   fetchChatHistory,
   fetchChatThread,
   fetchProfile,
   fetchResume,
+  getStoredAccessToken,
   login,
   register,
   searchJobs,
   sendChatMessage,
-  setAccessToken,
+  setOnAuthFailure,
+  setSession,
   uploadResume,
 } from "./api";
 import "./styles.css";
@@ -31,7 +34,6 @@ const starterPrompts = [
   "How do I move from backend to ML engineering?",
 ];
 
-const TOKEN_STORAGE_KEY = "careermind_access_token";
 const USER_STORAGE_KEY = "careermind_user";
 const ACTIVE_CHAT_STORAGE_KEY = "careermind_active_chat";
 
@@ -88,7 +90,7 @@ function App() {
     email: "",
     password: "",
   });
-  const [token, setToken] = useState(localStorage.getItem(TOKEN_STORAGE_KEY) ?? "");
+  const [token, setToken] = useState(getStoredAccessToken);
   const [user, setUser] = useState(getCachedUser);
   const [chatInput, setChatInput] = useState("");
   const [jobSearchForm, setJobSearchForm] = useState({
@@ -112,8 +114,9 @@ function App() {
   const [hasSearchedJobs, setHasSearchedJobs] = useState(false);
 
   useEffect(() => {
-    setAccessToken(token);
-  }, [token]);
+    // Lets the axios interceptor force a logout when a 401 survives a refresh attempt.
+    setOnAuthFailure(handleLogout);
+  }, []);
 
   useEffect(() => {
     if (activeChatId) {
@@ -186,17 +189,16 @@ function App() {
   }, [token, bootstrapRetryToken]);
 
   function persistSession(authResponse) {
-    localStorage.setItem(TOKEN_STORAGE_KEY, authResponse.tokens.access_token);
+    setSession(authResponse.tokens);
     localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(authResponse.user));
     setToken(authResponse.tokens.access_token);
     setUser(authResponse.user);
   }
 
   function handleLogout() {
-    localStorage.removeItem(TOKEN_STORAGE_KEY);
+    clearSession();
     localStorage.removeItem(USER_STORAGE_KEY);
     localStorage.removeItem(ACTIVE_CHAT_STORAGE_KEY);
-    setAccessToken("");
     setToken("");
     setUser(null);
     setResume(null);

@@ -6,6 +6,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from openai import AsyncOpenAI
 
 from app.agent.orchestrator import AgentContext, CareerAgentOrchestrator
+from app.agent.tools.adzuna_client import AdzunaClient
 from app.agent.tools.job_search import JobSearchTool
 from app.agent.tools.resume_parser import ResumeParserTool
 from app.agent.tools.skills_lookup import SkillsLookupTool
@@ -33,7 +34,11 @@ def _get_user_id(user: dict) -> str:
 def _build_orchestrator(database: AsyncIOMotorDatabase) -> CareerAgentOrchestrator:
     return CareerAgentOrchestrator(
         skills_lookup_tool=SkillsLookupTool(database, settings.skills_taxonomy_collection),
-        job_search_tool=JobSearchTool(database, settings.jobs_collection),
+        job_search_tool=JobSearchTool(
+            database,
+            settings.jobs_collection,
+            AdzunaClient(settings.adzuna_app_id, settings.adzuna_app_key),
+        ),
         resume_parser_tool=ResumeParserTool(),
         llm_client=_llm_client,
         model=settings.groq_model,

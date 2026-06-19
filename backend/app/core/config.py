@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     resumes_collection: str = "resumes"
     skills_taxonomy_collection: str = "skills_taxonomy"
     jobs_collection: str = "jobs"
+    adzuna_app_id: str = ""
+    adzuna_app_key: str = ""
     agent_max_tool_steps: int = 3
     groq_api_key: str = ""
     groq_model: str = "llama-3.3-70b-versatile"

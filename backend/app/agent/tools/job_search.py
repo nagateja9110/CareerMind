@@ -5,6 +5,7 @@ from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
+from app.agent.tools.adzuna_client import AdzunaClient
 from app.models.chat import RecommendedJob
 
 
@@ -17,9 +18,15 @@ def _matches(pattern: re.Pattern[str], value: str) -> bool:
 
 
 class JobSearchTool:
-    def __init__(self, database: AsyncIOMotorDatabase, collection_name: str) -> None:
+    def __init__(
+        self,
+        database: AsyncIOMotorDatabase,
+        collection_name: str,
+        adzuna_client: AdzunaClient | None = None,
+    ) -> None:
         self.database = database
         self.collection_name = collection_name
+        self.adzuna_client = adzuna_client
 
     async def search(
         self,
@@ -29,6 +36,15 @@ class JobSearchTool:
         skills: list[str] | None = None,
         rows: int = 3,
     ) -> list[RecommendedJob]:
+        # Prefer live Adzuna results (real, India-inclusive listings) when configured;
+        # the static Mongo dataset is a fallback for when Adzuna is unset or unreachable.
+        if self.adzuna_client and self.adzuna_client.configured:
+            live_results = await self.adzuna_client.search(
+                role=role, location=location, skills=skills, rows=rows
+            )
+            if live_results:
+                return live_results
+
         role_pattern = _regex_filter(role) if role else None
         location_pattern = _regex_filter(location) if location else None
         skill_patterns = [_regex_filter(skill) for skill in (skills or []) if skill]

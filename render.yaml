@@ -39,6 +39,10 @@ services:
         value: "7"
       - key: CORS_ORIGINS
         value: '["https://careermind-5obn.onrender.com"]'
+      - key: ADZUNA_APP_ID
+        sync: false
+      - key: ADZUNA_APP_KEY
+        sync: false
 
   - type: web
     name: careermind

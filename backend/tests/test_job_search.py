@@ -1,4 +1,16 @@
 from app.agent.tools.job_search import JobSearchTool
+from app.models.chat import RecommendedJob
+
+
+class FakeAdzunaClient:
+    def __init__(self, results, configured=True):
+        self.results = results
+        self.configured = configured
+        self.called_with = None
+
+    async def search(self, **kwargs):
+        self.called_with = kwargs
+        return self.results
 
 
 class FakeCursor:
@@ -101,3 +113,44 @@ async def test_search_ranks_partial_matches_above_non_matches():
     jobs = await tool.search(role="Data Engineer", location="Bangalore", skills=["Python"], rows=2)
 
     assert jobs[0].company == "PartialMatchCo"
+
+
+async def test_search_prefers_adzuna_results_when_configured():
+    database = FakeDatabase([{"title": "Should not be used", "company": "Mongo", "location": "X", "skills": []}])
+    live_job = RecommendedJob(title="AI Engineer", company="Adzuna Co", location="Bangalore", matched_skills=["python"])
+    adzuna_client = FakeAdzunaClient([live_job])
+    tool = JobSearchTool(database, "jobs", adzuna_client)
+
+    jobs = await tool.search(role="AI", location="Bangalore", skills=["python"])
+
+    assert jobs == [live_job]
+    assert adzuna_client.called_with == {
+        "role": "AI",
+        "location": "Bangalore",
+        "skills": ["python"],
+        "rows": 3,
+    }
+
+
+async def test_search_falls_back_to_mongo_when_adzuna_returns_nothing():
+    docs = [{"title": "Data Engineer", "company": "BridgeStack", "location": "Bangalore", "skills": ["Python"]}]
+    database = FakeDatabase(docs)
+    adzuna_client = FakeAdzunaClient([])
+    tool = JobSearchTool(database, "jobs", adzuna_client)
+
+    jobs = await tool.search(role="Data Engineer", location="Bangalore", skills=["Python"])
+
+    assert len(jobs) == 1
+    assert jobs[0].company == "BridgeStack"
+
+
+async def test_search_skips_adzuna_when_not_configured():
+    docs = [{"title": "Data Engineer", "company": "BridgeStack", "location": "Bangalore", "skills": ["Python"]}]
+    database = FakeDatabase(docs)
+    adzuna_client = FakeAdzunaClient([], configured=False)
+    tool = JobSearchTool(database, "jobs", adzuna_client)
+
+    jobs = await tool.search(role="Data Engineer")
+
+    assert adzuna_client.called_with is None
+    assert len(jobs) == 1
